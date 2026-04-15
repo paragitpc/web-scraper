@@ -1,0 +1,60 @@
+name: run-scraper
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Source to scrape"
+        required: true
+        default: "impo_diario"
+        type: choice
+        options:
+          - impo_diario
+      start:
+        description: "Start date (YYYY-MM-DD)"
+        required: true
+        default: "2026-01-01"
+      end:
+        description: "End date (YYYY-MM-DD)"
+        required: true
+        default: "2026-01-31"
+      delay:
+        description: "Delay between requests (seconds)"
+        required: false
+        default: "1.5"
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scraper
+        run: |
+          python scrapers/${{ inputs.source }}.py \
+            --start ${{ inputs.start }} \
+            --end ${{ inputs.end }} \
+            --delay ${{ inputs.delay }} \
+            --out data/output
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-output-${{ inputs.source }}-${{ inputs.start }}-${{ inputs.end }}
+          path: data/output/
+          retention-days: 7
