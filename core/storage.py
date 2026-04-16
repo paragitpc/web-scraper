@@ -4,7 +4,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 
 class LocalStorage:
@@ -24,6 +24,15 @@ class LocalStorage:
         target = self.base_dir / relative_path
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(content, encoding="utf-8")
+        return target
+
+    def save_json(self, relative_path: str | Path, data: Any) -> Path:
+        target = self.base_dir / relative_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
         return target
 
     def exists(self, relative_path: str | Path) -> bool:
@@ -49,6 +58,20 @@ class LocalStorage:
                 except json.JSONDecodeError:
                     continue
         return keys
+
+    def iter_index(self, source: str) -> Iterator[dict[str, Any]]:
+        path = self.index_path(source)
+        if not path.exists():
+            return
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
 
     def append_index_record(
         self,
@@ -76,3 +99,7 @@ class LocalStorage:
 
 def sha256_bytes(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
+
+
+def sha256_text(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()

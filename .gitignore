@@ -1,106 +1,95 @@
-# ============================================
-# .gitignore - Proyecto contable-uy-backfill
-# ============================================
 
-# === SECRETOS Y CREDENCIALES (CRÍTICO) ===
-.env
-.env.*
-*.env
-secrets/
-credentials/
-*.key
-*.pem
-*.token
-*token*
-*secret*
-*credential*
+# ============================================
+*~
+*$py.class
+# === Archivos personales ===
+build/
+.cache/
+cache/
 config.local.*
-*.private
-
-# === DATOS SCRAPEADOS (NO van al repo público) ===
+.coverage
+*credential*
+credentials/
+*.csv
+.cursorrules
 data/
 datos/
-output/
-salida/
-downloads/
-descargas/
-*.pdf
-*.json
-*.jsonl
-*.csv
-*.parquet
+# === DATOS SCRAPEADOS (NO van al repo público) ===
 *.db
-*.sqlite
-*.sqlite3
-cache/
-.cache/
-
-# === LOGS ===
-*.log
-logs/
-*.log.*
-
-# === PYTHON ===
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
+descargas/
 develop-eggs/
+.directory
 dist/
+docs/
 downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
+.DS_Store
+# === Editores / IDEs ===
 *.egg
-MANIFEST
-
+*.egg-info/
+.eggs/
+eggs/
 # === Entornos virtuales ===
-venv/
-.venv/
+*.env
+.env
+.env.*
 env/
 ENV/
 env.bak/
-venv.bak/
-
-# === Jupyter ===
-.ipynb_checkpoints
-*.ipynb
-
-# === Editores / IDEs ===
-.vscode/
+# .gitignore - Proyecto contable-uy-backfill
+htmlcov/
 .idea/
-*.swp
-*.swo
-*~
-.DS_Store
-Thumbs.db
-
-# === Sistema operativo ===
-.directory
-.Trash-*
-
+.installed.cfg
+*.ipynb
+.ipynb_checkpoints
+*.json
+*.jsonl
+# === Jupyter ===
+*.key
+lib/
+lib64/
+*.log
+*.log.*
+logs/
+# === LOGS ===
+MANIFEST
+notas_*.txt
+output/
+*.parquet
+parts/
+*.pdf
+*.pem
+personal/
+PERSONAL/
+.playwright/
 # === Playwright ===
 playwright-report/
-test-results/
-.playwright/
-
+*.private
+__pycache__/
+*.py[cod]
 # === Pytest ===
 .pytest_cache/
-.coverage
-htmlcov/
-
-# === Archivos personales ===
-PERSONAL/
-personal/
-notas_*.txt
+.Python
+# === PYTHON ===
+salida/
+sdist/
+*secret*
+# === SECRETOS Y CREDENCIALES (CRÍTICO) ===
+secrets/
+# === Sistema operativo ===
+*.so
+*.sqlite
+*.sqlite3
+*.swo
+*.swp
+test-results/
+Thumbs.db
 TODO_personal*
-
+*.token
+*token*
+.Trash-*
+var/
+.venv/
+venv/
+venv.bak/
+.vscode/
+wheels/

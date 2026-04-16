@@ -1,0 +1,114 @@
+name: backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      source:
+        description: "Scraper to run"
+        required: true
+        default: "impo_diario"
+        type: choice
+        options:
+          - impo_diario
+          - impo_leyes
+          - impo_decretos
+          - impo_resoluciones_mef
+          - dgi_consultas_vinculantes
+          - dgi_consultas_no_vinculantes
+      arg1:
+        description: "Arg 1 (e.g. start date or from-id or from-year)"
+        required: false
+        default: ""
+      arg2:
+        description: "Arg 2 (e.g. end date or to-id or to-year)"
+        required: false
+        default: ""
+      arg3:
+        description: "Arg 3 (optional, e.g. from-n)"
+        required: false
+        default: ""
+      arg4:
+        description: "Arg 4 (optional, e.g. to-n)"
+        required: false
+        default: ""
+      delay:
+        description: "Delay (seconds)"
+        required: false
+        default: "1.5"
+
+permissions:
+  contents: read
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: |
+          pip install -r requirements.txt
+          if [[ "${{ inputs.source }}" == dgi_* ]]; then
+            playwright install --with-deps chromium
+          fi
+      - name: run scraper
+        run: |
+          set -euxo pipefail
+          case "${{ inputs.source }}" in
+            impo_diario)
+              python scrapers/impo_diario.py \
+                --start "${{ inputs.arg1 }}" --end "${{ inputs.arg2 }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            impo_leyes)
+              python scrapers/impo_leyes.py \
+                --from-id "${{ inputs.arg1 }}" --to-id "${{ inputs.arg2 }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            impo_decretos)
+              python scrapers/impo_decretos.py \
+                --from-year "${{ inputs.arg1 }}" --to-year "${{ inputs.arg2 }}" \
+                --from-n "${{ inputs.arg3 }}" --to-n "${{ inputs.arg4 }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            impo_resoluciones_mef)
+              python scrapers/impo_resoluciones_mef.py \
+                --from-year "${{ inputs.arg1 }}" --to-year "${{ inputs.arg2 }}" \
+                --from-n "${{ inputs.arg3 }}" --to-n "${{ inputs.arg4 }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            dgi_consultas_vinculantes)
+              python scrapers/dgi_consultas_vinculantes.py \
+                --max-pages "${{ inputs.arg1 }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            dgi_consultas_no_vinculantes)
+              python scrapers/dgi_consultas_no_vinculantes.py \
+                --max-pages "${{ inputs.arg1 }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+          esac
+      - name: upload to dropbox
+        if: always()
+        env:
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REMOTE_ROOT: ${{ secrets.DROPBOX_REMOTE_ROOT }}
+        run: |
+          python -c "
+          import os
+          from pipeline.dropbox_uploader import upload_tree
+          root = os.environ.get('DROPBOX_REMOTE_ROOT','/normativa_uy')
+          upload_tree('data/output', root)
+          " || true
+      - name: upload artifact backup
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backfill-${{ inputs.source }}
+          path: data/output/
+          retention-days: 7
