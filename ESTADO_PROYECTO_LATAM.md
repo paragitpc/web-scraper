@@ -107,8 +107,8 @@ Cuando se agregue Argentina: Apps/normativa-sync/ar/...
 
 1. OK Jobs 6A y 6B lanzados: impo_diario 2005-2014
 2. OK dgi_normativa.py creado, probado y en GitHub
-3. PENDIENTE Agregar dgi_normativa al workflow run-scraper.yml
-4. PENDIENTE Crear cron diario (daily.yml) para todos los scrapers
+3. OK dgi_normativa agregado al workflow run-scraper.yml
+4. OK daily.yml reescrito - cron 9am UTC activo con impo-diario, impo-leyes, impo-decretos, dgi-normativa
 5. PENDIENTE Scrapers bloqueados: Playwright + cookie idsesionanonimo
 6. PENDIENTE Scrapers Parte 2: BPS, MTSS, BCU, AIN, etc.
 7. PENDIENTE Pipeline OCR para PDFs escaneados
