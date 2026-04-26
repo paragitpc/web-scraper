@@ -14,6 +14,7 @@ on:
           - impo_decretos
           - impo_resoluciones_mef
           - dgi_normativa
+          - impo_cgi
       start:
         description: "Arg 1 (start date or from-id or from-year)"
         required: true
@@ -76,6 +77,11 @@ jobs:
                 --from-year "${{ inputs.start }}" --to-year "${{ inputs.end }}" \
                 ${FROM_N:+--from-n "$FROM_N"} \
                 ${TO_N:+--to-n "$TO_N"} \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            impo_cgi)
+              python scrapers/impo_cgi.py \
+                --categories "${{ inputs.start }}" \
                 --delay ${{ inputs.delay }} --out data/output
               ;;
             dgi_normativa)
