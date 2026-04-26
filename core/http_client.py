@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import random
 from typing import Any
 
@@ -91,3 +92,11 @@ def looks_empty_or_error(
     if "text/plain" in ct and len(content) < 4096:
         return True
     return False
+
+
+def parse_impo_json_body(content: bytes) -> Any | None:
+    try:
+        text = content.decode("latin-1")
+        return json.loads(text)
+    except (UnicodeDecodeError, json.JSONDecodeError, ValueError):
+        return None

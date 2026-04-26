@@ -5,61 +5,30 @@ import sys
 from pathlib import Path
 
 import httpx
-from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from core.cli import base_parser, add_id_range, out_path, print_summary
-from core.http_client import fetch, make_async_client, polite_sleep
-from core.storage import LocalStorage, sha256_text
-
+from core.cli import add_id_range, base_parser, out_path, print_summary
+from core.http_client import fetch, make_async_client, parse_impo_json_body, polite_sleep
+from core.storage import LocalStorage, sha256_bytes
 
 SOURCE = "impo_leyes"
-URL_TEMPLATE = "https://www.impo.com.uy/bases/leyes-originales/{n}-2025"
-URL_TEMPLATE_FALLBACK = "https://www.impo.com.uy/bases/leyes/{n}"
-NOT_FOUND_MARKERS = (
-    "no existe la norma",
-    "no se encontr",
-    "página no encontrada",
-)
-MIN_BODY_TEXT = 250
+URL_TEMPLATE = "https://www.impo.com.uy/bases/leyes-originales/{n}-2025?json=true"
 
 
-def relative_path_for(n: int) -> str:
-    bucket = (n // 1000) * 1000
-    return f"{SOURCE}/{bucket:05d}/{n:05d}.html"
+def data_path_for(n: int) -> str:
+    return f"{SOURCE}/{n:05d}/data.json"
 
 
-def text_path_for(n: int) -> str:
-    bucket = (n // 1000) * 1000
-    return f"{SOURCE}/{bucket:05d}/{n:05d}.txt"
-
-
-def extract_text(html: str) -> tuple[str, str | None]:
-    soup = BeautifulSoup(html, "lxml")
-    for tag in soup(["script", "style", "noscript"]):
-        tag.decompose()
-    title = None
-    h1 = soup.find("h1")
-    if h1:
-        title = h1.get_text(strip=True)
-    body = soup.get_text("\n", strip=True)
-    return body, title
-
-
-async def fetch_law(client: httpx.AsyncClient, n: int) -> tuple[int, str, str]:
-    url = URL_TEMPLATE.format(n=n)
-    r = await fetch(client, url)
-    if r.status_code == 200 and len(r.text) > MIN_BODY_TEXT:
-        return r.status_code, r.text, url
-    url2 = URL_TEMPLATE_FALLBACK.format(n=n)
-    try:
-        r2 = await fetch(client, url2)
-        if r2.status_code == 200:
-            return r2.status_code, r2.text, url2
-    except Exception:
-        pass
-    return r.status_code, r.text, url
+def norm_has_content(data: object) -> bool:
+    if not isinstance(data, dict):
+        return False
+    if (data.get("leyenda") or "").strip():
+        return True
+    arts = data.get("articulos")
+    if isinstance(arts, list) and len(arts) > 0:
+        return True
+    return False
 
 
 async def process_id(
@@ -72,49 +41,69 @@ async def process_id(
     if key in already_done:
         return "skip_done"
 
-    rel_html = relative_path_for(n)
-    if storage.exists(rel_html):
+    rel_json = data_path_for(n)
+    if storage.exists(rel_json):
         return "skip_exists"
 
+    url = URL_TEMPLATE.format(n=n)
+
     try:
-        status, body, url = await fetch_law(client, n)
+        r = await fetch(client, url)
     except Exception as exc:
         print(f"  [error] ley {n}: {type(exc).__name__}: {exc}")
         return "error"
 
-    if status == 404:
+    if r.status_code == 404:
         storage.append_index_record(
-            source=SOURCE, key=key, url=url, relative_path="",
-            size_bytes=0, sha256="", extra={"status": "not_found"},
+            source=SOURCE,
+            key=key,
+            url=url,
+            relative_path="",
+            size_bytes=0,
+            sha256="",
+            extra={"status": "not_found"},
         )
         return "not_found"
 
-    if status != 200:
+    if r.status_code != 200:
         return "http_error"
 
-    text, title = extract_text(body)
-
-    if any(m in text.lower() for m in NOT_FOUND_MARKERS) or len(text) < MIN_BODY_TEXT:
+    parsed = parse_impo_json_body(r.content)
+    if parsed is None or not norm_has_content(parsed):
         storage.append_index_record(
-            source=SOURCE, key=key, url=url, relative_path="",
-            size_bytes=0, sha256="", extra={"status": "empty"},
+            source=SOURCE,
+            key=key,
+            url=url,
+            relative_path="",
+            size_bytes=0,
+            sha256="",
+            extra={"status": "empty"},
         )
         return "empty"
 
-    storage.save_text(rel_html, body)
-    storage.save_text(text_path_for(n), text)
+    assert isinstance(parsed, dict)
+    written = storage.save_json(rel_json, parsed)
+    raw = written.read_bytes()
+    digest = sha256_bytes(raw)
+    title = (parsed.get("leyenda") or None) if isinstance(parsed.get("leyenda"), str) else None
+    extra: dict = {}
+    if title:
+        extra["title"] = title.strip()[:500]
+    if parsed.get("anioNorma") is not None:
+        extra["year"] = parsed.get("anioNorma")
+    if parsed.get("nroNorma") is not None:
+        extra["number"] = parsed.get("nroNorma")
 
-    digest = sha256_text(text)
     storage.append_index_record(
         source=SOURCE,
         key=key,
         url=url,
-        relative_path=rel_html,
-        size_bytes=len(body.encode("utf-8")),
+        relative_path=rel_json,
+        size_bytes=len(raw),
         sha256=digest,
-        extra={"title": title} if title else None,
+        extra=extra or None,
     )
-    print(f"  [ok] ley {n}  ({len(text):,} chars)")
+    print(f"  [ok] ley {n}")
     return "ok"
 
 
@@ -123,7 +112,9 @@ async def run(from_id: int, to_id: int, base_dir: Path, delay: float) -> dict[st
     already_done = storage.load_index_keys(SOURCE)
     stats: dict[str, int] = {}
 
-    async with make_async_client(headers={"Accept": "text/html,*/*"}) as client:
+    async with make_async_client(
+        headers={"Accept": "application/json, */*"},
+    ) as client:
         for n in range(from_id, to_id + 1):
             result = await process_id(client, n, storage, already_done)
             stats[result] = stats.get(result, 0) + 1
@@ -134,7 +125,7 @@ async def run(from_id: int, to_id: int, base_dir: Path, delay: float) -> dict[st
 
 
 def main() -> None:
-    parser = base_parser("Scraper IMPO Leyes")
+    parser = base_parser("Scraper IMPO Leyes (JSON)")
     add_id_range(parser, default_min=1)
     args = parser.parse_args()
     base_dir = out_path(args)

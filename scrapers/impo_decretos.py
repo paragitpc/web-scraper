@@ -1,43 +1,38 @@
 from __future__ import annotations
 
-import argparse
 import asyncio
 import sys
 from pathlib import Path
 
 import httpx
-from bs4 import BeautifulSoup
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from core.cli import base_parser, out_path, print_summary
-from core.http_client import fetch, make_async_client, polite_sleep
-from core.storage import LocalStorage, sha256_text
-
+from core.http_client import fetch, make_async_client, parse_impo_json_body, polite_sleep
+from core.storage import LocalStorage, sha256_bytes
 
 SOURCE = "impo_decretos"
-URL_TEMPLATE = "https://www.impo.com.uy/bases/decretos/{n}-{y}"
-NOT_FOUND_MARKERS = ("no existe la norma", "no se encontr", "página no encontrada")
-MIN_BODY_TEXT = 250
+URL_TEMPLATE = "https://www.impo.com.uy/bases/decretos/{n}-{y}?json=true"
 
 
-def relative_path_for(y: int, n: int) -> str:
-    return f"{SOURCE}/{y:04d}/{n:05d}-{y:04d}.html"
+def relative_dir(y: int, n: int) -> str:
+    return f"{SOURCE}/{y:04d}/{n:05d}-{y:04d}"
 
 
-def text_path_for(y: int, n: int) -> str:
-    return f"{SOURCE}/{y:04d}/{n:05d}-{y:04d}.txt"
+def data_path_for(y: int, n: int) -> str:
+    return f"{relative_dir(y, n)}/data.json"
 
 
-def extract_text(html: str) -> tuple[str, str | None]:
-    soup = BeautifulSoup(html, "lxml")
-    for tag in soup(["script", "style", "noscript"]):
-        tag.decompose()
-    title = None
-    h1 = soup.find("h1")
-    if h1:
-        title = h1.get_text(strip=True)
-    return soup.get_text("\n", strip=True), title
+def norm_has_content(data: object) -> bool:
+    if not isinstance(data, dict):
+        return False
+    if (data.get("leyenda") or "").strip():
+        return True
+    arts = data.get("articulos")
+    if isinstance(arts, list) and len(arts) > 0:
+        return True
+    return False
 
 
 async def process_decree(
@@ -51,8 +46,8 @@ async def process_decree(
     if key in already_done:
         return "skip_done"
 
-    rel_html = relative_path_for(y, n)
-    if storage.exists(rel_html):
+    rel_json = data_path_for(y, n)
+    if storage.exists(rel_json):
         return "skip_exists"
 
     url = URL_TEMPLATE.format(n=n, y=y)
@@ -65,47 +60,73 @@ async def process_decree(
 
     if r.status_code == 404:
         storage.append_index_record(
-            source=SOURCE, key=key, url=url, relative_path="",
-            size_bytes=0, sha256="", extra={"status": "not_found"},
+            source=SOURCE,
+            key=key,
+            url=url,
+            relative_path="",
+            size_bytes=0,
+            sha256="",
+            extra={"status": "not_found"},
         )
         return "not_found"
+
     if r.status_code != 200:
         return "http_error"
 
-    text, title = extract_text(r.text)
-    if any(m in text.lower() for m in NOT_FOUND_MARKERS) or len(text) < MIN_BODY_TEXT:
+    parsed = parse_impo_json_body(r.content)
+    if parsed is None or not norm_has_content(parsed):
         storage.append_index_record(
-            source=SOURCE, key=key, url=url, relative_path="",
-            size_bytes=0, sha256="", extra={"status": "empty"},
+            source=SOURCE,
+            key=key,
+            url=url,
+            relative_path="",
+            size_bytes=0,
+            sha256="",
+            extra={"status": "empty"},
         )
         return "empty"
 
-    storage.save_text(rel_html, r.text)
-    storage.save_text(text_path_for(y, n), text)
+    assert isinstance(parsed, dict)
+    written = storage.save_json(rel_json, parsed)
+    raw = written.read_bytes()
+    digest = sha256_bytes(raw)
+    title = (parsed.get("leyenda") or None) if isinstance(parsed.get("leyenda"), str) else None
+    extra: dict = {"year": y, "number": n}
+    if title:
+        extra["title"] = title.strip()[:500]
+    if parsed.get("anioNorma") is not None:
+        extra["anioNorma"] = parsed.get("anioNorma")
+    if parsed.get("nroNorma") is not None:
+        extra["nroNorma"] = parsed.get("nroNorma")
 
     storage.append_index_record(
         source=SOURCE,
         key=key,
         url=url,
-        relative_path=rel_html,
-        size_bytes=len(r.text.encode("utf-8")),
-        sha256=sha256_text(text),
-        extra={"title": title, "year": y, "number": n} if title else {"year": y, "number": n},
+        relative_path=rel_json,
+        size_bytes=len(raw),
+        sha256=digest,
+        extra=extra,
     )
-    print(f"  [ok] dec {key}  ({len(text):,} chars)")
+    print(f"  [ok] dec {key}")
     return "ok"
 
 
 async def run(
-    from_year: int, to_year: int,
-    from_n: int, to_n: int,
-    base_dir: Path, delay: float,
+    from_year: int,
+    to_year: int,
+    from_n: int,
+    to_n: int,
+    base_dir: Path,
+    delay: float,
 ) -> dict[str, int]:
     storage = LocalStorage(base_dir)
     already_done = storage.load_index_keys(SOURCE)
     stats: dict[str, int] = {}
 
-    async with make_async_client(headers={"Accept": "text/html,*/*"}) as client:
+    async with make_async_client(
+        headers={"Accept": "application/json, */*"},
+    ) as client:
         for y in range(from_year, to_year + 1):
             for n in range(from_n, to_n + 1):
                 result = await process_decree(client, n, y, storage, already_done)
@@ -117,7 +138,7 @@ async def run(
 
 
 def main() -> None:
-    parser = base_parser("Scraper IMPO Decretos")
+    parser = base_parser("Scraper IMPO Decretos (JSON)")
     parser.add_argument("--from-year", type=int, required=True)
     parser.add_argument("--to-year", type=int, required=True)
     parser.add_argument("--from-n", type=int, default=1)
