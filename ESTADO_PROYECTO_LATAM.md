@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — LegalTech LATAM
-**Ultima actualizacion:** 2026-04-26
+**Ultima actualizacion:** 2026-04-26 (sesion tarde)
 
 ---
 
@@ -47,6 +47,7 @@ Carpeta local activa: /home/pablo/Documents/Proyecto_SCRAP/contable-uy-backfill/
 | impo_diario.py | PDF directo httpx | Diario Oficial PDF por fecha |
 | impo_leyes.py | API JSON IMPO | encoding latin-1 |
 | impo_decretos.py | API JSON IMPO | requiere from-year/to-year + from-n/to-n |
+| dgi_normativa.py | httpx directo | TO2023 PDF (100MB) + 7 paginas HTML estaticas DGI |
 
 ### BLOQUEADOS - requieren sesion IMPO
 | Scraper | Problema | Solucion planificada |
@@ -104,13 +105,14 @@ Cuando se agregue Argentina: Apps/normativa-sync/ar/...
 
 ## 8. PROXIMOS PASOS EN ORDEN
 
-1. PENDIENTE Lanzar Job 6: impo_diario 2005-2009
-2. PENDIENTE Verificar resultados Jobs 1-5 en Dropbox
-3. PENDIENTE Scrapers bloqueados: Playwright + cookie idsesionanonimo
-4. PENDIENTE Scrapers Parte 2: BPS, MTSS, BCU, AIN, etc.
-5. PENDIENTE Pipeline OCR para PDFs escaneados
-6. PENDIENTE Repo privado daily para mantenimiento
-7. PENDIENTE Capa RAG: pgvector + embeddings
+1. OK Jobs 6A y 6B lanzados: impo_diario 2005-2014
+2. OK dgi_normativa.py creado, probado y en GitHub
+3. PENDIENTE Agregar dgi_normativa al workflow run-scraper.yml
+4. PENDIENTE Crear cron diario (daily.yml) para todos los scrapers
+5. PENDIENTE Scrapers bloqueados: Playwright + cookie idsesionanonimo
+6. PENDIENTE Scrapers Parte 2: BPS, MTSS, BCU, AIN, etc.
+7. PENDIENTE Pipeline OCR para PDFs escaneados
+8. PENDIENTE Capa RAG: pgvector + embeddings
 
 ---
 
@@ -148,7 +150,25 @@ Cuando se agregue Argentina: Apps/normativa-sync/ar/...
 
 ---
 
-## 10. NOTAS TECNICAS CLAVE
+## 10. ESTRATEGIA CRON DIARIO
+
+El cron diario (daily.yml) debe correr automaticamente cada dia y cubrir:
+
+| Scraper | Modo diario | Logica |
+|---|---|---|
+| impo_diario.py | fecha de ayer | 1 PDF por dia |
+| impo_leyes.py | ultimas 50 leyes | from-id = ultimo conocido |
+| impo_decretos.py | anio actual, ultimos 50 | rolling window |
+| dgi_normativa.py | mode=all | re-descarga si cambia hash |
+
+Regla anti-gap: el primer run del cron debe arrancar desde 2026-04-25
+para no dejar hueco entre los backfills y el daily.
+
+Workflow daily.yml: activado con schedule cron '0 6 * * *' (6am UTC = 3am Uruguay)
+
+---
+
+## 11. NOTAS TECNICAS CLAVE
 
 - Anio dummy en leyes: IMPO ignora el anio en leyes-originales, usar N-2025
 - Cookie sesion IMPO: idsesionanonimo generada automaticamente al navegar
