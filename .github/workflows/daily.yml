@@ -9,6 +9,7 @@ permissions:
   contents: read
 
 jobs:
+
   impo-diario:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -30,18 +31,95 @@ jobs:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REMOTE_ROOT: ${{ secrets.DROPBOX_REMOTE_ROOT }}
         run: |
           python -c "
-          import os
           from pipeline.dropbox_uploader import upload_tree
-          root = os.environ.get('DROPBOX_REMOTE_ROOT','/normativa_uy')
-          upload_tree('data/output', root)
+          upload_tree('data/output', '/uy')
+          "
+
+  impo-leyes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - name: scrape ultimas 100 leyes
+        run: |
+          python scrapers/impo_leyes.py \
+            --from-id 20400 --to-id 20600 \
+            --delay 1.5 --out data/output
+      - name: upload to dropbox
+        env:
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+        run: |
+          python -c "
+          from pipeline.dropbox_uploader import upload_tree
+          upload_tree('data/output', '/uy')
+          "
+
+  impo-decretos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - name: scrape decretos anio actual
+        run: |
+          python scrapers/impo_decretos.py \
+            --from-year $(date -u +%Y) --to-year $(date -u +%Y) \
+            --from-n 1 --to-n 800 \
+            --delay 1.5 --out data/output
+      - name: upload to dropbox
+        env:
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+        run: |
+          python -c "
+          from pipeline.dropbox_uploader import upload_tree
+          upload_tree('data/output', '/uy')
+          "
+
+  dgi-normativa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - run: pip install -r requirements.txt
+      - name: scrape DGI normativa estatica
+        run: |
+          python scrapers/dgi_normativa.py \
+            --mode all \
+            --delay 2.0 --out data/output
+      - name: upload to dropbox
+        env:
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+        run: |
+          python -c "
+          from pipeline.dropbox_uploader import upload_tree
+          upload_tree('data/output', '/uy')
           "
 
   dgi-consultas-vinc:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    if: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -51,24 +129,24 @@ jobs:
       - run: |
           pip install -r requirements.txt
           playwright install --with-deps chromium
-      - run: python scrapers/dgi_consultas_vinculantes.py --max-pages 10 --delay 2.0 --out data/output
+      - run: |
+          python scrapers/dgi_consultas_vinculantes.py \
+            --max-pages 10 --delay 2.0 --out data/output
       - name: upload to dropbox
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REMOTE_ROOT: ${{ secrets.DROPBOX_REMOTE_ROOT }}
         run: |
           python -c "
-          import os
           from pipeline.dropbox_uploader import upload_tree
-          root = os.environ.get('DROPBOX_REMOTE_ROOT','/normativa_uy')
-          upload_tree('data/output', root)
+          upload_tree('data/output', '/uy')
           "
 
   dgi-consultas-no-vinc:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    if: false
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -78,17 +156,16 @@ jobs:
       - run: |
           pip install -r requirements.txt
           playwright install --with-deps chromium
-      - run: python scrapers/dgi_consultas_no_vinculantes.py --max-pages 10 --delay 2.0 --out data/output
+      - run: |
+          python scrapers/dgi_consultas_no_vinculantes.py \
+            --max-pages 10 --delay 2.0 --out data/output
       - name: upload to dropbox
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
-          DROPBOX_REMOTE_ROOT: ${{ secrets.DROPBOX_REMOTE_ROOT }}
         run: |
           python -c "
-          import os
           from pipeline.dropbox_uploader import upload_tree
-          root = os.environ.get('DROPBOX_REMOTE_ROOT','/normativa_uy')
-          upload_tree('data/output', root)
+          upload_tree('data/output', '/uy')
           "
