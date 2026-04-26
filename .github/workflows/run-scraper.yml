@@ -69,15 +69,21 @@ jobs:
                 --delay ${{ inputs.delay }} --out data/output
               ;;
             impo_decretos)
+              FROM_N="${{ inputs.extra1 }}"
+              TO_N="${{ inputs.extra2 }}"
               python scrapers/impo_decretos.py \
                 --from-year "${{ inputs.start }}" --to-year "${{ inputs.end }}" \
-                --from-n "${{ inputs.extra1 }}" --to-n "${{ inputs.extra2 }}" \
+                ${FROM_N:+--from-n "$FROM_N"} \
+                ${TO_N:+--to-n "$TO_N"} \
                 --delay ${{ inputs.delay }} --out data/output
               ;;
             impo_resoluciones_mef)
+              FROM_N="${{ inputs.extra1 }}"
+              TO_N="${{ inputs.extra2 }}"
               python scrapers/impo_resoluciones_mef.py \
                 --from-year "${{ inputs.start }}" --to-year "${{ inputs.end }}" \
-                --from-n "${{ inputs.extra1 }}" --to-n "${{ inputs.extra2 }}" \
+                ${FROM_N:+--from-n "$FROM_N"} \
+                ${TO_N:+--to-n "$TO_N"} \
                 --delay ${{ inputs.delay }} --out data/output
               ;;
           esac
