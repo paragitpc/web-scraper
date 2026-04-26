@@ -1,5 +1,5 @@
 # ESTADO DEL PROYECTO — LegalTech LATAM
-**Ultima actualizacion:** 2026-04-26 (sesion tarde)
+**Ultima actualizacion:** 2026-04-26 (sesion tarde-noche - CIERRE)
 
 ---
 
@@ -100,6 +100,7 @@ Cuando se agregue Argentina: Apps/normativa-sync/ar/...
 | 6 | impo_diario | 2005-01-01/2009-12-31 | - | PENDIENTE |
 | 7 | impo_decretos | 1990-1999 | 1-600 | PENDIENTE |
 | 8 | impo_leyes | post-20500 | - | PENDIENTE futuro |
+| 9 | impo_cgi | all categories | - | CORRIENDO 2026-04-26 |
 
 ---
 
@@ -109,8 +110,16 @@ Cuando se agregue Argentina: Apps/normativa-sync/ar/...
 2. OK dgi_normativa.py creado, probado y en GitHub
 3. OK dgi_normativa agregado al workflow run-scraper.yml
 4. OK daily.yml reescrito - cron 9am UTC activo con impo-diario, impo-leyes, impo-decretos, dgi-normativa
-5. PENDIENTE Scrapers bloqueados: Playwright + cookie idsesionanonimo
+5. OK impo_cgi.py creado, probado, en GitHub y lanzado - 18 categorias IMPO
 6. PENDIENTE Scrapers Parte 2: BPS, MTSS, BCU, AIN, etc.
+7. PENDIENTE Crear repo privado contable-uy-daily para cron diario
+8. OK Repo publico limpiado - sin cron, sin comentarios descriptivos
+
+## PARA MANANA - PRIORIDADES
+1. Verificar resultados backfills Jobs 1-9 en Dropbox
+2. Crear repo privado contable-uy-daily
+3. Migrar daily.yml al repo privado con cron activado
+4. Scrapers Parte 2: BPS, MTSS, BCU, AIN, etc.
 7. PENDIENTE Pipeline OCR para PDFs escaneados
 8. PENDIENTE Capa RAG: pgvector + embeddings
 
@@ -168,7 +177,31 @@ Workflow daily.yml: activado con schedule cron '0 6 * * *' (6am UTC = 3am Urugua
 
 ---
 
-## 11. NOTAS TECNICAS CLAVE
+## 11. CGI IMPO - MECANISMO VALIDADO
+
+URL base: https://www.impo.com.uy/bases (redirige al CGI)
+Flujo correcto:
+  1. Navegar a https://www.impo.com.uy/ (genera cookies GA)
+  2. Navegar a https://www.impo.com.uy/bases (genera idsesionanonimo)
+  3. frame = page.frames[0]
+  4. frame.select_option("select", VALUE) para elegir categoria
+  5. frame.evaluate("document.querySelector('input[type=submit]').click()")
+  6. Parsear resultados del frame
+
+Categorias disponibles (value -> nombre):
+  1=Todo, 2=Normativa y otros Doc, 3=Avisos, 4=Constitucion
+  5=Leyes, 6=Decretos, 7=Resoluciones, 8=Codigos
+  9=Textos Ordenados, 10=Normas Internacionales, 11=Reglamentos
+  379=ASSE, 14=BCU, 15=DGI, 12=Intendencias
+  16=Suprema Corte, 13=Tribunal de Cuentas, 1108=TCA Sentencias
+
+Codigos disponibles (14 total): Tributario, Civil, Comercio, Penal,
+  Aduanero, Ninez, Aguas, Rural, Aeronautico, Mineria,
+  CGP, CPP 2017, CPP viejo, Contencioso Administrativo
+
+---
+
+## 12. NOTAS TECNICAS CLAVE
 
 - Anio dummy en leyes: IMPO ignora el anio en leyes-originales, usar N-2025
 - Cookie sesion IMPO: idsesionanonimo generada automaticamente al navegar
