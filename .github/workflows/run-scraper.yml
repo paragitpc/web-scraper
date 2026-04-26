@@ -15,6 +15,7 @@ on:
           - impo_resoluciones_mef
           - dgi_normativa
           - dgi_web
+          - gub_uy
           - impo_cgi
       start:
         description: "Arg 1 (start date or from-id or from-year)"
@@ -84,6 +85,11 @@ jobs:
               playwright install chromium
               python scrapers/impo_cgi.py \
                 --categories "${{ inputs.start }}" \
+                --delay ${{ inputs.delay }} --out data/output
+              ;;
+            gub_uy)
+              python scrapers/gub_uy_scraper.py \
+                --organisms "${{ inputs.start }}" \
                 --delay ${{ inputs.delay }} --out data/output
               ;;
             dgi_web)
