@@ -80,6 +80,7 @@ jobs:
                 --delay ${{ inputs.delay }} --out data/output
               ;;
             impo_cgi)
+              playwright install chromium
               python scrapers/impo_cgi.py \
                 --categories "${{ inputs.start }}" \
                 --delay ${{ inputs.delay }} --out data/output
