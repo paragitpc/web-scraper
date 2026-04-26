@@ -91,7 +91,7 @@ jobs:
                 --delay ${{ inputs.delay }} --out data/output
               ;;
           esac
-      - name: upload to dropbox
+      - name: upload
         if: always()
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}

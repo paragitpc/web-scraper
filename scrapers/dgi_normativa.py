@@ -201,12 +201,12 @@ async def run(base_dir: Path, delay: float, mode: str) -> dict[str, int]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Scraper DGI normativa (gub.uy)")
+    parser = argparse.ArgumentParser(description="scraper")
     parser.add_argument(
         "--mode",
         choices=["all", "pdf", "html"],
         default="all",
-        help="Que descargar: all (default), pdf, html",
+        help="mode",
     )
     parser.add_argument("--out", default="data/output", help="base output dir")
     parser.add_argument("--delay", type=float, default=DEFAULT_DELAY)

@@ -142,11 +142,11 @@ async def run(categories: list[str], base_dir: Path, delay: float) -> dict:
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Scraper IMPO CGI - todas las categorias")
+    parser = argparse.ArgumentParser(description="scraper")
     parser.add_argument(
         "--categories",
         default="all",
-        help="Categorias a scrapear: all, o lista separada por comas (ej: 8,9,15)",
+        help="categories",
     )
     parser.add_argument("--out", default="data/output")
     parser.add_argument("--delay", type=float, default=DEFAULT_DELAY)

@@ -1,8 +1,6 @@
 name: daily
 
 on:
-  schedule:
-    - cron: "0 9 * * *"
   workflow_dispatch:
 
 permissions:
@@ -20,13 +18,13 @@ jobs:
           python-version: "3.12"
           cache: "pip"
       - run: pip install -r requirements.txt
-      - name: scrape last 3 days
+      - name: run scraper
         run: |
           python scrapers/impo_diario.py \
             --start $(date -u -d '3 days ago' +%F) \
             --end $(date -u +%F) \
             --delay 1.5 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
@@ -47,12 +45,12 @@ jobs:
           python-version: "3.12"
           cache: "pip"
       - run: pip install -r requirements.txt
-      - name: scrape ultimas 100 leyes
+      - name: run scraper
         run: |
           python scrapers/impo_leyes.py \
             --from-id 20400 --to-id 20600 \
             --delay 1.5 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
@@ -73,13 +71,13 @@ jobs:
           python-version: "3.12"
           cache: "pip"
       - run: pip install -r requirements.txt
-      - name: scrape decretos anio actual
+      - name: run scraper
         run: |
           python scrapers/impo_decretos.py \
             --from-year $(date -u +%Y) --to-year $(date -u +%Y) \
             --from-n 1 --to-n 800 \
             --delay 1.5 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
@@ -100,12 +98,12 @@ jobs:
           python-version: "3.12"
           cache: "pip"
       - run: pip install -r requirements.txt
-      - name: scrape DGI normativa estatica
+      - name: run scraper
         run: |
           python scrapers/dgi_normativa.py \
             --mode all \
             --delay 2.0 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
@@ -128,12 +126,12 @@ jobs:
       - run: |
           pip install -r requirements.txt
           playwright install chromium
-      - name: scrape IMPO CGI todas las categorias
+      - name: run scraper
         run: |
           python scrapers/impo_cgi.py \
             --categories all \
             --delay 2.0 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
@@ -160,7 +158,7 @@ jobs:
       - run: |
           python scrapers/dgi_consultas_vinculantes.py \
             --max-pages 10 --delay 2.0 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
@@ -187,7 +185,7 @@ jobs:
       - run: |
           python scrapers/dgi_consultas_no_vinculantes.py \
             --max-pages 10 --delay 2.0 --out data/output
-      - name: upload to dropbox
+      - name: upload
         env:
           DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
