@@ -39,6 +39,8 @@ async def get_session_and_search(playwright, category_value, delay, from_page=1,
     await frame.evaluate("document.querySelector('input[type=submit]').click()")
     await page.wait_for_load_state("networkidle", timeout=30000)
     await asyncio.sleep(4)
+    await page.wait_for_load_state("domcontentloaded", timeout=60000)
+    await asyncio.sleep(2)
 
     html = await page.content()
     m = re.search(r"idconsulta=([A-Za-z0-9]+)", html)
