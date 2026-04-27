@@ -23,14 +23,14 @@ CATEGORIES = {
     "16": "suprema_corte", "13": "tribunal_cuentas", "1108": "tca_sentencias",
 }
 
-async def get_session_and_search(playwright, category_value, delay):
+async def get_session_and_search(playwright, category_value, delay, from_page=1, to_page=0):
     browser = await playwright.chromium.launch(headless=True)
     context = await browser.new_context(user_agent=USER_AGENT)
     page = await context.new_page()
 
     print("  [session] iniciando...")
-    await page.goto("https://www.impo.com.uy/", wait_until="networkidle", timeout=30000)
-    await page.goto("https://www.impo.com.uy/bases", wait_until="networkidle", timeout=30000)
+    await page.goto("https://www.impo.com.uy/", wait_until="networkidle", timeout=60000)
+    await page.goto("https://www.impo.com.uy/bases", wait_until="networkidle", timeout=60000)
     await asyncio.sleep(3)
 
     frame = page.main_frame
@@ -65,7 +65,7 @@ async def get_session_and_search(playwright, category_value, delay):
         nt = len(all_links) + 50
         next_url = base_cgi + "?tipoServicio=3&realizarconsulta=SI&idconsulta=" + idconsulta + "&nrodocdesdehasta=" + str(nf) + "-" + str(nt)
         print("  [page] docs", nf, "-", nt)
-        await page.goto(next_url, wait_until="networkidle", timeout=30000)
+        await page.goto(next_url, wait_until="networkidle", timeout=60000)
         await asyncio.sleep(2)
         page_html = await page.content()
 
@@ -97,7 +97,7 @@ async def fetch_json(url, cookie_dict):
             return None
 
 
-async def run(categories, base_dir, delay):
+async def run(categories, base_dir, delay, from_page=1, to_page=0):
     storage = LocalStorage(base_dir)
     already_done = storage.load_index_keys(SOURCE)
     stats = {"ok": 0, "skip": 0, "error": 0, "no_json": 0}
@@ -107,7 +107,7 @@ async def run(categories, base_dir, delay):
             cat_name = CATEGORIES.get(cat_value, "cat_" + cat_value)
             print("\n=== Categoria:", cat_name, "===")
 
-            links, cookie_dict = await get_session_and_search(playwright, cat_value, delay)
+            links, cookie_dict = await get_session_and_search(playwright, cat_value, delay, from_page, to_page)
 
             for url in links:
                 key = url.strip("/").replace("/", "_")
@@ -150,6 +150,8 @@ def parse_args():
     parser.add_argument("--categories", default="1,2,3,4,7,8,9,10,11,12,13,14,15,16,379,1108")
     parser.add_argument("--out", default="data/output")
     parser.add_argument("--delay", type=float, default=DEFAULT_DELAY)
+    parser.add_argument("--from-page", type=int, default=1, help="Pagina inicial (1-based)")
+    parser.add_argument("--to-page", type=int, default=0, help="Pagina final (0=todas)")
     return parser.parse_args()
 
 
@@ -158,7 +160,7 @@ def main():
     base_dir = Path(args.out).expanduser().resolve()
     cats = list(CATEGORIES.keys()) if args.categories == "all" else [c.strip() for c in args.categories.split(",")]
     print("IMPO CGI scraper  categories=" + str(cats) + "  delay=" + str(args.delay))
-    stats = asyncio.run(run(cats, base_dir, args.delay))
+    stats = asyncio.run(run(cats, base_dir, args.delay, args.from_page, args.to_page))
     print("\nsummary:")
     for k, v in sorted(stats.items()):
         print(" ", k, v)
