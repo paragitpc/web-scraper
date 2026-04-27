@@ -83,7 +83,7 @@ async def fetch_json(url, cookie_dict):
         "User-Agent": USER_AGENT,
         "Cookie": "; ".join(k + "=" + v for k, v in cookie_dict.items()),
     }
-    async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
+    async with httpx.AsyncClient(headers=headers, timeout=120.0) as client:
         full_url = "https://www.impo.com.uy" + url + "?json=true"
         try:
             r = await client.get(full_url, follow_redirects=True)
