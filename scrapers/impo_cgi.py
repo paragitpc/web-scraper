@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import argparse
 import asyncio
 import json
@@ -36,9 +37,13 @@ async def get_session_and_search(playwright, category_value, delay):
     frame = page.main_frame
     await frame.select_option("select", category_value)
     await asyncio.sleep(1)
+
     await frame.evaluate("document.querySelector('input[type=submit]').click()")
-    await page.wait_for_load_state("networkidle", timeout=30000)
-    await asyncio.sleep(4)
+    await page.wait_for_load_state("domcontentloaded")
+    try:
+        await page.locator("body").filter(has_text=re.compile(r"docs|encontraron")).wait_for(timeout=30000)
+    except Exception as e:
+        print(f"  [warning] timeout esperando resultados: {e}")
 
     html = await page.content()
     m = re.search(r"idconsulta=([A-Za-z0-9]+)", html)
@@ -65,8 +70,12 @@ async def get_session_and_search(playwright, category_value, delay):
         nt = len(all_links) + 50
         next_url = base_cgi + "?tipoServicio=3&realizarconsulta=SI&idconsulta=" + idconsulta + "&nrodocdesdehasta=" + str(nf) + "-" + str(nt)
         print("  [page] docs", nf, "-", nt)
-        await page.goto(next_url, wait_until="networkidle", timeout=30000)
-        await asyncio.sleep(2)
+
+        await page.goto(next_url, wait_until="domcontentloaded", timeout=30000)
+        try:
+            await page.locator("a[href*='/bases/']").first.wait_for(timeout=30000)
+        except Exception as e:
+            print(f"  [warning] timeout esperando enlaces: {e}")
         page_html = await page.content()
 
     print("  [search] links totales:", len(all_links))
@@ -81,7 +90,7 @@ async def fetch_json(url, cookie_dict):
         "User-Agent": USER_AGENT,
         "Cookie": "; ".join(k + "=" + v for k, v in cookie_dict.items()),
     }
-    async with httpx.AsyncClient(headers=headers, timeout=60.0) as client:
+    async with httpx.AsyncClient(headers=headers, timeout=120.0) as client:
         full_url = "https://www.impo.com.uy" + url + "?json=true"
         try:
             r = await client.get(full_url, follow_redirects=True)
