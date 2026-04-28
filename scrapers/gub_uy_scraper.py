@@ -40,9 +40,15 @@ ORGANISMS = {
     "mtss": {
         "base_path": "/ministerio-trabajo-seguridad-social",
         "sections": [
-            ("noticias",      "/comunicacion/noticias",      10),
-            ("publicaciones", "/comunicacion/publicaciones", 5),
-            ("normativa",     "/normativa",                  5),
+            ("noticias",          "/comunicacion/noticias",                              10),
+            ("publicaciones",     "/comunicacion/publicaciones",                         5),
+            ("comunicados",       "/comunicacion/comunicados",                           5),
+            ("convocatorias",     "/comunicacion/convocatorias",                         3),
+            ("normativa",         "/institucional/normativa",                            5),
+            ("consejos_salarios", "/tematica/consejos-salarios-negociacion-colectiva",   3),
+            ("tramites",          "/tramites-y-servicios/tramites",                      1),
+            ("transparencia",     "/institucional/transparencia",                        1),
+            ("info_gestion",      "/institucional/informacion-gestion",                  1),
         ]
     },
     "senaclaft": {
