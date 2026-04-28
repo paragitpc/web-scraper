@@ -42,7 +42,14 @@ async def get_session_and_search(playwright, category_value, delay, from_page=1,
     await page.wait_for_load_state("domcontentloaded", timeout=60000)
     await asyncio.sleep(2)
 
-    html = await page.content()
+    html = ""
+    for attempt in range(10):
+        try:
+            html = await page.content()
+            if html and len(html) > 1000:
+                break
+        except Exception:
+            await asyncio.sleep(3)
     m = re.search(r"idconsulta=([A-Za-z0-9]+)", html)
     idconsulta = m.group(1) if m else None
     m2 = re.search(r"([0-9]+) docs", html)
